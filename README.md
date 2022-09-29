@@ -7,6 +7,8 @@ Parses Twiddler v5 cfg files and renders the layout, like so:
 ![Default layout, Shift](screenshot5.png?raw=true "Default layout, Shift")
 ![Default layout, Num+Alt](screenshot6.png?raw=true "Default layout, Num+Alt")
 
+Note that it requires my helper library be `mvn clean install`ed: https://github.com/Erhannis/MathNStuff
+
 Released under Apache 2.0.
 
 -Erhannis
