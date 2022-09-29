@@ -99,7 +99,9 @@ public class Chord {
         t += tbSp ? "L" : "";
         t += tbE ? "M" : "";
         t += tbA ? "R" : "";
-        if (t.length() > 1) {
+        if (t.length() == 0) {
+            t = "O";
+        } else if (t.length() > 1) {
             t = "("+t+")";
         }
         s += t;
@@ -108,7 +110,9 @@ public class Chord {
         t += tbDel ? "L" : "";
         t += tbF ? "M" : "";
         t += tbB ? "R" : "";
-        if (t.length() > 1) {
+        if (t.length() == 0) {
+            t = "O";
+        } else if (t.length() > 1) {
             t = "("+t+")";
         }
         s += t;
@@ -117,7 +121,9 @@ public class Chord {
         t += tbBs ? "L" : "";
         t += tbG ? "M" : "";
         t += tbC ? "R" : "";
-        if (t.length() > 1) {
+        if (t.length() == 0) {
+            t = "O";
+        } else if (t.length() > 1) {
             t = "("+t+")";
         }
         s += t;
@@ -126,7 +132,9 @@ public class Chord {
         t += tbEnt ? "L" : "";
         t += tbH ? "M" : "";
         t += tbD ? "R" : "";
-        if (t.length() > 1) {
+        if (t.length() == 0) {
+            t = "O";
+        } else if (t.length() > 1) {
             t = "("+t+")";
         }
         s += t;
@@ -144,5 +152,50 @@ public class Chord {
 
     public String getString(ArrayList<String> stringTable) {
         return getTbString() + " -> " + getSbString(stringTable);
+    }
+    
+    public boolean isMultichord() {
+        int i;
+        
+        i = 0;
+        i += (tbSp ? 1 : 0) + (tbE ? 1 : 0) + (tbA ? 1 : 0);
+        if (i > 1) return true;
+        
+        i = 0;
+        i += (tbDel ? 1 : 0) + (tbF ? 1 : 0) + (tbB ? 1 : 0);
+        if (i > 1) return true;
+        
+        i = 0;
+        i += (tbBs ? 1 : 0) + (tbG ? 1 : 0) + (tbC ? 1 : 0);
+        if (i > 1) return true;
+        
+        i = 0;
+        i += (tbEnt ? 1 : 0) + (tbH ? 1 : 0) + (tbD ? 1 : 0);
+        if (i > 1) return true;
+        
+        return false;
+    }
+    
+    public int getLowestRow() { // Sorta niche, I'll grant
+        int r = 0;
+        int i;
+        
+        i = 0;
+        i += (tbSp ? 1 : 0) + (tbE ? 1 : 0) + (tbA ? 1 : 0);
+        if (i > 0) r = 1;
+        
+        i = 0;
+        i += (tbDel ? 1 : 0) + (tbF ? 1 : 0) + (tbB ? 1 : 0);
+        if (i > 0) r = 2;
+        
+        i = 0;
+        i += (tbBs ? 1 : 0) + (tbG ? 1 : 0) + (tbC ? 1 : 0);
+        if (i > 0) r = 3;
+        
+        i = 0;
+        i += (tbEnt ? 1 : 0) + (tbH ? 1 : 0) + (tbD ? 1 : 0);
+        if (i > 0) r = 4;
+        
+        return r;
     }
 }
