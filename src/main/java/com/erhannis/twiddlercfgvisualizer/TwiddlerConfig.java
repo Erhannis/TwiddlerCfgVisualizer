@@ -11,7 +11,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
 import java.util.ArrayList;
 
 /**
@@ -58,65 +61,67 @@ public class TwiddlerConfig {
     }
     
     public void readConfig(File f) throws FileNotFoundException, IOException {
-        try (LittleEndianDataInputStream dis = new LittleEndianDataInputStream(new FileInputStream(f))) { // Relies on DIS being big-endian
-            // Read header
-            this.version = dis.read();
-            this.optionsA = dis.read();
-            this.oaKeyRepeat    = ((optionsA & 0b00000001) != 0);
-            this.oaDirectKey    = ((optionsA & 0b00000010) != 0);
-            this.oaJoyLeftClick = ((optionsA & 0b00000100) != 0);
-            this.oaBTOff        = ((optionsA & 0b00001000) != 0);
-            this.oaStickyNum    = ((optionsA & 0b00010000) != 0);
-            this.oaNA1          = ((optionsA & 0b00100000) != 0);
-            this.oaNA2          = ((optionsA & 0b01000000) != 0);
-            this.oaStickyShift  = ((optionsA & 0b10000000) != 0);
-            this.nChords           = dis.readUnsignedShort();
-            this.sleepTimeout      = dis.readUnsignedShort(); // Seconds
-            this.leftMouse         = dis.readUnsignedShort();
-            this.middleMouse       = dis.readUnsignedShort();
-            this.rightMouse        = dis.readUnsignedShort();
-            this.mouseAcceleration = dis.read();
-            this.repeatDelay       = dis.read();
-            this.optionsB          = dis.read();
-            this.optionsC          = dis.read();
-            this.ocHaptic          = ((optionsC & 0b00000001) != 0);
-            
-            // Chord table
-            this.chords = new ArrayList<>();
-            for (int i = 0; i < nChords; i++) {
-                chords.add(Chord.fromInt(dis.readUnsignedShort(), dis.readUnsignedByte(), dis.readUnsignedByte()));
-            }
-            
-            // String table
-            this.strings = new ArrayList<>();
-            int maxStringIndex = -1;
-            for (int i = 0; i < nChords; i++) {
-                Chord c = chords.get(i);
-                if (c.sbIsStr) {
-                    maxStringIndex = Math.max(maxStringIndex, c.sbRemainder);
+        ByteBuffer bb = ByteBuffer.wrap(Files.readAllBytes(f.toPath()));
+        bb.order(ByteOrder.LITTLE_ENDIAN);
+        // Read header
+        this.version = bb.get() & 0xFF;
+        this.optionsA = bb.get() & 0xFF;
+        this.oaKeyRepeat    = ((optionsA & 0b00000001) != 0);
+        this.oaDirectKey    = ((optionsA & 0b00000010) != 0);
+        this.oaJoyLeftClick = ((optionsA & 0b00000100) != 0);
+        this.oaBTOff        = ((optionsA & 0b00001000) != 0);
+        this.oaStickyNum    = ((optionsA & 0b00010000) != 0);
+        this.oaNA1          = ((optionsA & 0b00100000) != 0);
+        this.oaNA2          = ((optionsA & 0b01000000) != 0);
+        this.oaStickyShift  = ((optionsA & 0b10000000) != 0);
+        this.nChords           = bb.getShort() & 0xFFFF;
+        this.sleepTimeout      = bb.getShort() & 0xFFFF; // Seconds
+        this.leftMouse         = bb.getShort() & 0xFFFF;
+        this.middleMouse       = bb.getShort() & 0xFFFF;
+        this.rightMouse        = bb.getShort() & 0xFFFF;
+        this.mouseAcceleration = bb.get() & 0xFF;
+        this.repeatDelay       = bb.get() & 0xFF;
+        this.optionsB          = bb.get() & 0xFF;
+        this.optionsC          = bb.get() & 0xFF;
+        this.ocHaptic          = ((optionsC & 0b00000001) != 0);
+
+        // Chord table
+        this.chords = new ArrayList<>();
+        this.strings = new ArrayList<>();
+        for (int i = 0; i < nChords; i++) {
+            Chord c = Chord.fromInt(bb.getShort() & 0xFFFF, bb.get() & 0xFF, bb.get() & 0xFF);
+            chords.add(c);
+            if (c.sbIsStr) {
+                while (this.strings.size() < (c.sbRemainder+1)) {
+                    this.strings.add(null);
                 }
-            }
-            for (int i = 0; i <= maxStringIndex; i++) {
-                dis.readInt();
-            }
-            for (int i = 0; i <= maxStringIndex; i++) {
-                int len = (dis.readUnsignedShort() - 2) / 2;
-                String s = "";
-                for (int j = 0; j < len; j++) {
-                    int modifier = dis.read(); //TODO Something
-                    boolean lCtrl     = ((modifier  & 0b00000001) != 0);
-                    boolean lShift    = ((modifier  & 0b00000010) != 0);
-                    boolean lAlt      = ((modifier  & 0b00000100) != 0);
-                    boolean lGui      = ((modifier  & 0b00001000) != 0);
-                    boolean rCtrl     = ((modifier  & 0b00010000) != 0);
-                    boolean rShift    = ((modifier  & 0b00100000) != 0);
-                    boolean rAlt      = ((modifier  & 0b01000000) != 0);
-                    boolean rGui      = ((modifier  & 0b10000000) != 0);
+                if (this.strings.get(c.sbRemainder) == null) {
+                    int prevPos = bb.position();
                     
-                    int b = dis.read();
-                    s += UsbHidKeys.scanCodeToString(lShift || rShift, b);
+                    bb.position(16 + 4*nChords + 4*c.sbRemainder);
+                    int stringPos = bb.getInt();
+                    bb.position(stringPos);
+                    
+                    int len = ((bb.getShort() & 0xFFFF) - 2) / 2;
+                    String s = "";
+                    for (int j = 0; j < len; j++) {
+                        int modifier = bb.get() & 0xFF; //TODO Something
+                        boolean lCtrl     = ((modifier  & 0b00000001) != 0);
+                        boolean lShift    = ((modifier  & 0b00000010) != 0);
+                        boolean lAlt      = ((modifier  & 0b00000100) != 0);
+                        boolean lGui      = ((modifier  & 0b00001000) != 0);
+                        boolean rCtrl     = ((modifier  & 0b00010000) != 0);
+                        boolean rShift    = ((modifier  & 0b00100000) != 0);
+                        boolean rAlt      = ((modifier  & 0b01000000) != 0);
+                        boolean rGui      = ((modifier  & 0b10000000) != 0);
+
+                        int b = bb.get() & 0xFF;
+                        s += UsbHidKeys.scanCodeToString(lShift || rShift, b);
+                    }
+                    this.strings.set(c.sbRemainder, s);
+                    
+                    bb.position(prevPos);
                 }
-                strings.add(s);
             }
         }
     }
